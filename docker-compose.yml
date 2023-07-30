@@ -1,4 +1,4 @@
-version: '3.10'
+version: '3.8'
 services:
 
   db:
@@ -38,23 +38,22 @@ services:
     networks:
       - backend
     build:
-      context: ../feature-store/
+      context: ../feature-store
       dockerfile: Dockerfile
-    image: feature-store-inz
+    image: feature-store
     restart: always
     environment:
       - CONFIG_PATH=config/config.yml
       - CONNECTION_STRING=${CONNECTION_STRING}
 
-
-  # Model Service
   model_service:
     depends_on:
       - db
+    container_name: model_service_inz
     networks:
       - backend
     build:
-      context: ../model-service/
+      context: ../model-service
       dockerfile: Dockerfile
     ports:
       - "127.0.0.1:8001:8000"
@@ -66,22 +65,23 @@ services:
       - CONFIG_PATH=config/config.yml
       - CONNECTION_STRING=${CONNECTION_STRING}
 
-  # Telegram bot service
+
   tg_bot:
     depends_on:
       - db
       - model_service
-    container_name: sub-telegram-bot
+    container_name: tg_bot_inz
     networks:
       - backend
     build:
-      context: ../telegram-bot/
+      context: ../telegram-bot
       dockerfile: Dockerfile
+    image: tg-bot
     restart: always
     environment:
-      - APP_TOKEN=${APP_TOKEN}
+      - CONFIG_PATH=config/config.yml
       - CONNECTION_STRING=${CONNECTION_STRING}
-
+      - APP_TOKEN=${APP_TOKEN}
 
 volumes:
   db:

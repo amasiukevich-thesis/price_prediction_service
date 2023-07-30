@@ -1,0 +1,94 @@
+version: '3.10'
+services:
+
+  db:
+    container_name: db
+    networks:
+      - backend
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - '5432:5432'
+    volumes:
+      - db:/var/lib/postgresql/data
+      - ./ddl_scripts:/docker-entrypoint-initdb.d
+
+  pgadmin:
+    container_name: pgadmin4_container
+    networks:
+      - backend
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+
+  feature_store:
+    depends_on:
+      - db
+    container_name: feature_store_inz
+    networks:
+      - backend
+    build:
+      context: ../feature-store/
+      dockerfile: Dockerfile
+    image: feature-store-inz
+    restart: always
+    environment:
+      - CONFIG_PATH=config/config.yml
+      - CONNECTION_STRING=${CONNECTION_STRING}
+
+
+  # Model Service
+  model_service:
+    depends_on:
+      - db
+    networks:
+      - backend
+    build:
+      context: ../model-service/
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8001:8000"
+    expose:
+      - "8000"
+    image: model-service
+    restart: always
+    environment:
+      - CONFIG_PATH=config/config.yml
+      - CONNECTION_STRING=${CONNECTION_STRING}
+
+  # Telegram bot service
+  tg_bot:
+    depends_on:
+      - db
+      - model_service
+    container_name: sub-telegram-bot
+    networks:
+      - backend
+    build:
+      context: ../telegram-bot/
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - APP_TOKEN=${APP_TOKEN}
+      - CONNECTION_STRING=${CONNECTION_STRING}
+
+
+volumes:
+  db:
+    driver: local
+  pgadmin:
+    driver: local
+
+networks:
+  backend:
+    driver: bridge
